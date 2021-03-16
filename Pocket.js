@@ -9,7 +9,7 @@
 	"inRepository": true,
 	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2021-03-16 11:02:51"
+	"lastUpdated": "2021-03-16 11:31:32"
 }
 
 /*
@@ -52,10 +52,18 @@ function detectWeb(doc, url) {
 }
 
 function doWeb(doc, url) {
-	var contentType = detectWeb(doc, url);
+	scrape(doc, url);
+}
+
+function scrape(doc, url) {
+	var translator = Zotero.loadTranslator('web');
+	// Embedded Metadata
+	translator.setTranslator('951c027d-74ac-47d4-a107-9c3069ab7b48');
+	translator.setDocument(doc);
 	
-	if (contentType == "magazineArticle") {
-		var newItem = new Zotero.Item(contentType);
+	translator.setHandler('itemDone', function (obj, item) {
+		item.contentType = detectWeb(doc, url);
+		
 		// All meta information is contained in "article header"
 		// Title is h1
 		
@@ -74,26 +82,30 @@ function doWeb(doc, url) {
 		// react root container: document.querySelector('#__next')
 		// some info in first prop of document.querySelector('.reader')
 		
-		console.log("test");
-		var findValueByPrefix = function(object, prefix) {
-		  for (var property in object) {
-			if (object.hasOwnProperty(property) && 
-					property.toString().startsWith(prefix)) {
-				return object[property];
+		// find react properties
+		var reader = doc.querySelector('.reader');
+		Zotero.debug(reader);
+		// react props not available....
+		/*for (var property in reader) {
+			if (reader.hasOwnProperty(property) && 
+					property.toString().startsWith("__reactProps")) {
+				var props = reader[property].children[0].props;
+				break;
 			}
-		  }
-		};
-		console.log(findValueByPrefix);
-		props = findValueByPrefix(doc.querySelector('.reader'), "__reactProps").children[0].props;
+		}*/
 		
-		newItem.title = props.title;
-		newItem.url = props.open_url;
-		newItem.publication = props.publisher;
+		/*if (!props) {
+			return;
+		}*/
+		
+		/*item.title = props.title;
+		item.url = props.open_url;
+		item.publication = props.publisher;
 		for (var author of values(props.authors)) {
 			console.log(author.name);
 		}
 		
-		newItem.attachments = [
+		item.attachments = [
 			{
 				url: props.open_url,
 				title: "Original Link",
@@ -106,9 +118,13 @@ function doWeb(doc, url) {
 				mimeType: "text/html",
 				snapshot: true,
 			},
-		];
+		];*/
 		
-		newItem.complete();
-	}
+		item.complete();
+	});
+
+	translator.getTranslatorObject(function(trans) {
+		trans.doWeb(doc, url);
+	});
 }
 
