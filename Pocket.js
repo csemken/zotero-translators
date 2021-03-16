@@ -9,7 +9,7 @@
 	"inRepository": true,
 	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2021-03-15 14:12:31"
+	"lastUpdated": "2021-03-16 11:02:51"
 }
 
 /*
@@ -53,7 +53,9 @@ function detectWeb(doc, url) {
 
 function doWeb(doc, url) {
 	var contentType = detectWeb(doc, url);
+	
 	if (contentType == "magazineArticle") {
+		var newItem = new Zotero.Item(contentType);
 		// All meta information is contained in "article header"
 		// Title is h1
 		
@@ -71,19 +73,42 @@ function doWeb(doc, url) {
 		
 		// react root container: document.querySelector('#__next')
 		// some info in first prop of document.querySelector('.reader')
-		function findValueByPrefix(object, prefix) {
+		
+		console.log("test");
+		var findValueByPrefix = function(object, prefix) {
 		  for (var property in object) {
-		    if (object.hasOwnProperty(property) && 
-		       property.toString().startsWith(prefix)) {
-		       return object[property];
-		    }
+			if (object.hasOwnProperty(property) && 
+					property.toString().startsWith(prefix)) {
+				return object[property];
+			}
 		  }
+		};
+		console.log(findValueByPrefix);
+		props = findValueByPrefix(doc.querySelector('.reader'), "__reactProps").children[0].props;
+		
+		newItem.title = props.title;
+		newItem.url = props.open_url;
+		newItem.publication = props.publisher;
+		for (var author of values(props.authors)) {
+			console.log(author.name);
 		}
 		
-		props = findValueByPrefix(document.querySelector('.reader'), "__reactProps").children[0].props;
-		props
+		newItem.attachments = [
+			{
+				url: props.open_url,
+				title: "Original Link",
+				mimeType: "text/html",
+				snapshot: true,
+			},
+			{
+				url: url,
+				title: "Pocket Link",
+				mimeType: "text/html",
+				snapshot: true,
+			},
+		];
+		
+		newItem.complete();
 	}
 }
 
-/** BEGIN TEST CASES **/
-/** END TEST CASES **/
