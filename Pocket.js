@@ -9,7 +9,7 @@
 	"inRepository": true,
 	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2021-03-16 11:31:32"
+	"lastUpdated": "2021-03-16 15:16:39"
 }
 
 /*
@@ -38,9 +38,7 @@
 
 function detectWeb(doc, url) {
 	// check if on read page
-	var pattern = /\/read/i;
-	var search = url.search(pattern) != -1;
-	if (search) {
+	if (url.includes('/read')) {
 		/* 
 		Pocket can be used with any type of website, including scientific,
 		newspaper and magazine articles. However, looking at their own examples
@@ -56,75 +54,60 @@ function doWeb(doc, url) {
 }
 
 function scrape(doc, url) {
-	var translator = Zotero.loadTranslator('web');
-	// Embedded Metadata
-	translator.setTranslator('951c027d-74ac-47d4-a107-9c3069ab7b48');
-	translator.setDocument(doc);
-	
-	translator.setHandler('itemDone', function (obj, item) {
-		item.contentType = detectWeb(doc, url);
-		
-		// All meta information is contained in "article header"
-		// Title is h1
-		
-		// Original link is href with id reader.external-link.view-original
-		
-		// Add pocket information into Extra
-		
-		// Below the the h1 there is a div which starts with the word "By",
-		// followed by the author information (variable no. of divs) and, 
-		// finally, the length of the read
-		// 1. If there are 4 divs in, then the second is the (list of)
-		//    author name(s) and the third is the website
-		// 2. If there are only 3 divs in, the second is the website 
-		
-		
-		// react root container: document.querySelector('#__next')
-		// some info in first prop of document.querySelector('.reader')
-		
-		// find react properties
-		var reader = doc.querySelector('.reader');
-		Zotero.debug(reader);
-		// react props not available....
-		/*for (var property in reader) {
-			if (reader.hasOwnProperty(property) && 
-					property.toString().startsWith("__reactProps")) {
-				var props = reader[property].children[0].props;
-				break;
-			}
-		}*/
-		
-		/*if (!props) {
-			return;
-		}*/
-		
-		/*item.title = props.title;
-		item.url = props.open_url;
-		item.publication = props.publisher;
-		for (var author of values(props.authors)) {
-			console.log(author.name);
-		}
-		
-		item.attachments = [
-			{
-				url: props.open_url,
-				title: "Original Link",
-				mimeType: "text/html",
-				snapshot: true,
-			},
-			{
-				url: url,
-				title: "Pocket Link",
-				mimeType: "text/html",
-				snapshot: true,
-			},
-		];*/
-		
-		item.complete();
-	});
+	var item = new Zotero.Item(detectWeb(doc, url));
 
-	translator.getTranslatorObject(function(trans) {
-		trans.doWeb(doc, url);
-	});
+	// All meta information is contained in "article header"
+	// Title is h1
+	item.title = doc.querySelector('article header h1').textContent;
+	
+	// Original link is href with id reader.external-link.view-original
+	item.url = doc.querySelector('article header a').href;
+	
+	// Below the the h1 there is a div which starts with the word "By",
+	// followed by the author information (variable no. of divs) and, 
+	// finally, the length of the read
+	var metaDivs = doc.querySelector('article header div').children;
+	var authors, publisher;
+	if (metaDivs.length == 4) {
+		// 1. If there are 4 divs in, then the second is the (list of)
+		//    author name(s) and the third is the publisher
+		authors = metaDivs[1].textContent;
+		publisher = metaDivs[2].textContent;
+	} else if (metaDivs.length == 3) {
+		// 2. If there are only 3 divs in, the second is the publisher 
+		authors = null;
+		publisher = metaDivs[1].textContent;
+	} else {
+		throw 'Unexpected number of divs in article header';
+	}
+	
+	var author;
+	if (authors) {
+		// split authors on "," and "and"
+		for (var raw_author of authors.split(/,\s|\sand\s/)) {
+			// clean and append author
+			author = Zotero.Utilities.cleanAuthor(raw_author, 'Author')
+			item.creators.push(author);
+		}
+	} 
+	
+	item.publicationTitle = publisher;
+	
+	item.attachments = [
+		{
+			url: item.url,
+			title: "Original Link",
+			mimeType: "text/html",
+			snapshot: true,
+		},
+		{
+			url: url,
+			title: "Pocket Link",
+			mimeType: "text/html",
+			snapshot: true,
+		},
+	];
+	
+	item.complete();
 }
 
